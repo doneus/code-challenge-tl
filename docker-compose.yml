@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: code-challenge-tl-postgres
+    environment:
+      POSTGRES_DB: payments
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d payments']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: redpandadata/redpanda:v24.3.6
+    container_name: code-challenge-tl-kafka
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - '1'
+      - --memory
+      - '1G'
+      - --reserve-memory
+      - '0M'
+      - --node-id
+      - '0'
+      - --check=false
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:9092,OUTSIDE://0.0.0.0:19092
+      - --advertise-kafka-addr
+      - PLAINTEXT://kafka:9092,OUTSIDE://localhost:19092
+      - --set
+      - redpanda.auto_create_topics_enabled=false
+    ports:
+      - '9092:9092'
+      - '19092:19092'
+    healthcheck:
+      test: ['CMD-SHELL', 'rpk cluster health | grep -q Healthy']
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  kafka-init-topics:
+    image: redpandadata/redpanda:v24.3.6
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        rpk topic create payment.created.v1 --brokers kafka:9092 --partitions 3 --replicas 1 || true
+        rpk topic create payment.failed.v1 --brokers kafka:9092 --partitions 1 --replicas 1 || true
+        rpk topic list --brokers kafka:9092
+
+volumes:
+  postgres-data:

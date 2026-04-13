@@ -195,3 +195,5 @@ Your PR description must include:
 **There is no time limit stated intentionally.** A focused solution delivered in four hours tells us more than an exhaustive one delivered in two days. Prioritise depth of reasoning over breadth of features.
 
 If you have questions, open an issue on this repository. We respond to issues within one business day.
+
+
